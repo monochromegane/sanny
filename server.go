@@ -41,15 +41,15 @@ func (s *Server) Initialize() error {
 
 	var data [][]float32
 	for {
-		buf := make([]byte, 4*s.dim)
+		buf := make([]byte, SIZE_FLOAT32*s.dim)
 		len, err := conn.Read(buf)
 		if err == io.EOF {
 			break
 		}
 		buf = buf[:len]
 		data = append(data, BytesToFloat32s(buf))
-		bytes := make([]byte, 4)
-		binary.BigEndian.PutUint32(bytes[0:4], uint32(0))
+		bytes := make([]byte, SIZE_FLOAT32)
+		binary.BigEndian.PutUint32(bytes[0:SIZE_FLOAT32], uint32(0))
 		conn.Write(bytes)
 	}
 	s.searcher.Build(data)
@@ -70,7 +70,7 @@ func (s Server) Run() error {
 		}
 		go func(conn net.Conn) {
 			for {
-				buf := make([]byte, 4*s.dim)
+				buf := make([]byte, SIZE_FLOAT32*s.dim)
 				len, err := conn.Read(buf)
 				if err == io.EOF {
 					break
