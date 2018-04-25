@@ -56,7 +56,7 @@ func (r *Remote) Search(q []float32, n int) []int {
 	}
 
 	conn.Write(req)
-	buf := make([]byte, SIZE_FLOAT32*n)
+	buf := make([]byte, SIZE_INT32*n)
 	len, err := conn.Read(buf)
 	if err != nil {
 		panic(err)
