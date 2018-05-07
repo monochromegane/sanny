@@ -12,8 +12,8 @@ type Sanny struct {
 	searchers []Searcher
 }
 
-func NewSanny(splitNum, top int, searchers []Searcher) Sanny {
-	return Sanny{
+func NewSanny(splitNum, top int, searchers []Searcher) Searcher {
+	return &Sanny{
 		splitNum:  splitNum,
 		top:       top,
 		searchers: searchers,
@@ -38,7 +38,7 @@ func (s *Sanny) Build(data [][]float32) {
 	}
 }
 
-func (s Sanny) Search(q []float32, n int, distance bool) ([]int, []float64) {
+func (s Sanny) Search(q []float32, n int) []int {
 	results := map[int]int{}
 
 	var wg sync.WaitGroup
@@ -73,10 +73,10 @@ func (s Sanny) Search(q []float32, n int, distance bool) ([]int, []float64) {
 	close(ch)
 	<-done
 
-	return s.bruteForce(q, n, distance, results)
+	return s.bruteForce(q, n, results)
 }
 
-func (s Sanny) bruteForce(q []float32, n int, distance bool, candidates map[int]int) ([]int, []float64) {
+func (s Sanny) bruteForce(q []float32, n int, candidates map[int]int) []int {
 	data := make([][]float32, len(candidates))
 	cnt := 0
 	keys := make([]int, len(candidates))
@@ -92,14 +92,5 @@ func (s Sanny) bruteForce(q []float32, n int, distance bool, candidates map[int]
 	for i, s := range indecies {
 		ids[i] = keys[s]
 	}
-	if distance {
-		bf := BruteForce{}
-		distances := make([]float64, len(ids))
-		for i, id := range ids {
-			distances[i] = bf.distance(q, s.data[id])
-		}
-		return ids, distances
-	} else {
-		return ids, nil
-	}
+	return ids
 }
