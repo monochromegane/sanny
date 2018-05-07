@@ -1,0 +1,13 @@
+algos:
+  -
+    name: brute_force
+    args: []
+  -
+    name: brute_force_blas
+    args: []
+  -
+    name: annoy
+    args: [[100], [100]] # tree, searchK
+  -
+    name: sanny
+    args: [[100], [100]] # tree, searchK
