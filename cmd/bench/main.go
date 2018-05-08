@@ -106,6 +106,10 @@ func benchAnnoy(queries, data [][]float32, truth [][]int) {
 func benchSanny(queries, data [][]float32, truth [][]int) {
 	splitNum := 8
 	top := count * 2
+	indecies := make([][]int, splitNum)
+	for i, _ := range indecies {
+		indecies[i] = []int{i}
+	}
 	config, _ := loadConfig(configPath)
 	for _, tree := range config.Args[0] {
 		for _, searchK := range config.Args[1] {
@@ -116,7 +120,7 @@ func benchSanny(queries, data [][]float32, truth [][]int) {
 			runner := Runner{
 				Name:        "Sanny",
 				Description: fmt.Sprintf("split: %d, top: %d, tree: %d, searchK: %d", splitNum, top, tree, searchK),
-				Algo:        sanny.NewSanny(splitNum, top, searchers),
+				Algo:        sanny.NewSanny(splitNum, top, true, searchers, indecies),
 			}
 			recall, qps := runner.Run(truth, queries, data)
 			writeTo(runner.Name, recall, qps)

@@ -10,22 +10,33 @@ type Sanny struct {
 	splitNum  int
 	top       int
 	searchers []Searcher
+	sort      bool
+	indecies  [][]int
 }
 
-func NewSanny(splitNum, top int, searchers []Searcher) Searcher {
+func NewSanny(splitNum, top int, sort bool, searchers []Searcher, indecies [][]int) Searcher {
 	return &Sanny{
 		splitNum:  splitNum,
 		top:       top,
 		searchers: searchers,
+		sort:      sort,
+		indecies:  indecies,
 	}
 }
 
 func (s *Sanny) Build(data [][]float32) {
-	s.data = data
+	if s.sort {
+		s.data = data
+	}
 	dim := len(data[0])
 	colNum := int(math.Ceil(float64(dim) / float64(s.splitNum)))
-	for i := 0; i < s.splitNum; i++ {
-		from := i * colNum
+	for i, ids := range s.indecies {
+		if _, ok := s.searchers[i].(*Remote); ok {
+			// Build on remote server
+			continue
+		}
+
+		from := ids[0] * colNum
 		to := from + colNum
 		if to > dim {
 			to = dim
@@ -53,27 +64,53 @@ func (s Sanny) Search(q []float32, n int) []int {
 
 	dim := len(q)
 	colNum := int(math.Ceil(float64(dim) / float64(s.splitNum)))
-	for i := 0; i < s.splitNum; i++ {
+	for i, ids := range s.indecies {
 		wg.Add(1)
-		go func(i int) {
+		go func(i int, ids []int) {
 			defer wg.Done()
-
-			from := i * colNum
-			to := from + colNum
-			if to > dim {
-				to = dim
+			var qq []float32
+			if len(ids) == 1 {
+				from := ids[0] * colNum
+				to := from + colNum
+				if to > dim {
+					to = dim
+				}
+				qq = q[from:to]
+			} else {
+				for j, _ := range ids {
+					from := ids[j] * colNum
+					to := from + colNum
+					if to > dim {
+						to = dim
+					}
+					qq = append(qq, q[from:to]...)
+				}
 			}
-			ids := s.searchers[i].Search(q[from:to], s.top)
-			for _, id := range ids {
+			r := s.searchers[i].Search(qq, s.top)
+			for _, id := range r {
 				ch <- id
 			}
-		}(i)
+		}(i, ids)
 	}
 	wg.Wait()
 	close(ch)
 	<-done
 
-	return s.bruteForce(q, n, results)
+	return s.candidates(q, n, results)
+}
+
+func (s Sanny) candidates(q []float32, n int, candidates map[int]int) []int {
+	if s.sort {
+		return s.bruteForce(q, n, candidates)
+	}
+
+	ids := make([]int, len(candidates))
+	i := 0
+	for id := range candidates {
+		ids[i] = id
+		i++
+	}
+	return ids
 }
 
 func (s Sanny) bruteForce(q []float32, n int, candidates map[int]int) []int {

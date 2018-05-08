@@ -3,89 +3,41 @@ package sanny
 import (
 	"bytes"
 	"compress/zlib"
-	"encoding/binary"
-	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
+
+	"github.com/monochromegane/smux"
 )
 
 type Server struct {
 	compress bool
-	port     int
 	searcher Searcher
-	dim      int
+	address  string
 }
 
-func NewServer(port, dim int, compress bool, searcher Searcher) Server {
+func NewServer(address string, compress bool, searcher Searcher) Server {
 	return Server{
-		port:     port,
-		dim:      dim,
+		address:  address,
 		compress: compress,
 		searcher: searcher,
 	}
 }
 
-func (s *Server) Initialize() error {
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
-	if err != nil {
-		return err
-	}
-	defer ln.Close()
-
-	conn, err := ln.Accept()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	var data [][]float32
-	for {
-		buf := make([]byte, SIZE_FLOAT32*s.dim)
-		len, err := conn.Read(buf)
-		if err == io.EOF {
-			break
-		}
-		buf = buf[:len]
-		data = append(data, BytesToFloat32s(buf))
-		bytes := make([]byte, SIZE_FLOAT32)
-		binary.BigEndian.PutUint32(bytes[0:SIZE_FLOAT32], uint32(0))
-		conn.Write(bytes)
-	}
-	s.searcher.Build(data)
-	return nil
-}
-
 func (s Server) Run() error {
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
-	if err != nil {
-		return err
-	}
-	defer ln.Close()
-
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			return err
-		}
-		go func(conn net.Conn) {
-			for {
-				buf := make([]byte, SIZE_FLOAT32*s.dim)
-				len, err := conn.Read(buf)
-				if err == io.EOF {
-					break
-				}
-				buf = buf[:len]
-				if s.compress {
-					r, _ := zlib.NewReader(bytes.NewReader(buf))
-					dc, _ := ioutil.ReadAll(r)
-					buf = dc
-				}
-				q := BytesToFloat32s(buf)
-				ids := s.searcher.Search(q, 10)
-				conn.Write(IntsToBytes(ids))
+	server := smux.Server{
+		Network: "tcp",
+		Address: s.address,
+		Handler: smux.HandlerFunc(func(w io.Writer, r io.Reader) {
+			buf, _ := ioutil.ReadAll(r)
+			if s.compress {
+				zr, _ := zlib.NewReader(bytes.NewReader(buf))
+				dc, _ := ioutil.ReadAll(zr)
+				buf = dc
 			}
-			conn.Close()
-		}(conn)
+			q := BytesToFloat32s(buf)
+			ids := s.searcher.Search(q, 10)
+			w.Write(IntsToBytes(ids))
+		}),
 	}
+	return server.ListenAndServe()
 }
