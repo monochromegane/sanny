@@ -223,7 +223,8 @@ func (r *Runner) Run(truth [][]int, queries, data [][]float32) (float64, time.Du
 }
 
 func writeTo(name string, recall float64, qps time.Duration) {
-	file, err := os.OpenFile(fmt.Sprintf("results/%s.csv", name), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	os.Mkdir(outPath, 0755)
+	file, err := os.OpenFile(fmt.Sprintf("%s/%s.csv", outPath, name), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		panic(err)
 	}
