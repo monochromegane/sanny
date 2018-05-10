@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/monochromegane/sanny"
+	"gonum.org/v1/gonum/mat"
+	"gonum.org/v1/gonum/stat"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -25,6 +27,7 @@ var (
 	count      int
 	algo       string
 	seed       int64
+	components int
 )
 
 func init() {
@@ -36,6 +39,7 @@ func init() {
 	flag.IntVar(&count, "count", 10, "Number of near neighbours to search for")
 	flag.StringVar(&outPath, "out", "results", "Output directory path")
 	flag.Int64Var(&seed, "seed", 1, "Random seed for shuffle. If seed < 0 then use random seed")
+	flag.IntVar(&components, "components", 0, "Compress dimension by PCA.")
 	flag.Parse()
 }
 
@@ -52,6 +56,13 @@ func main() {
 
 	fmt.Printf("Computing truth...\n")
 	truth := computeTruth(queries, data)
+
+	if components > 0 {
+		fmt.Printf("Compressing...\n")
+		x = pca(x)
+		queries = x[:testSize]
+		data = x[testSize:]
+	}
 
 	fmt.Printf("Running benchmarks...\n")
 	switch algo {
@@ -261,4 +272,35 @@ func loadConfig(path string) (Algo, error) {
 		}
 	}
 	return Algo{}, fmt.Errorf("Unknown algorism")
+}
+
+func pca(data [][]float32) [][]float32 {
+	y := mat.NewDense(len(data), len(data[0]), nil)
+	for i := 0; i < len(data); i++ {
+		r := make([]float64, len(data[i]))
+		for j, _ := range data[i] {
+			r[j] = float64(data[i][j])
+		}
+		row := mat.NewVecDense(len(data[i]), r)
+		y.SetRow(i, mat.Col(nil, 0, row))
+	}
+
+	var pc stat.PC
+	ok := pc.PrincipalComponents(y, nil)
+	if !ok {
+		panic("PCA fails")
+	}
+
+	k := components
+	var proj mat.Dense
+	proj.Mul(y, pc.VectorsTo(nil).Slice(0, len(data[0]), 0, k))
+
+	x := make([][]float32, len(data))
+	for i := 0; i < len(data); i++ {
+		x[i] = make([]float32, k)
+		for j := 0; j < k; j++ {
+			x[i][j] = float32(proj.At(i, j))
+		}
+	}
+	return x
 }
