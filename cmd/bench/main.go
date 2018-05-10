@@ -115,26 +115,28 @@ func benchAnnoy(queries, data [][]float32, truth [][]int) {
 }
 
 func benchSanny(queries, data [][]float32, truth [][]int) {
-	splitNum := 8
-	top := count * 2
-	indecies := make([][]int, splitNum)
-	for i, _ := range indecies {
-		indecies[i] = []int{i}
-	}
 	config, _ := loadConfig(configPath)
-	for _, tree := range config.Args[0] {
-		for _, searchK := range config.Args[1] {
-			searchers := make([]sanny.Searcher, splitNum)
-			for i, _ := range searchers {
-				searchers[i] = sanny.NewAnnoy(tree, searchK)
+	for _, splitNum := range config.Args[0] {
+		indecies := make([][]int, splitNum)
+		for i, _ := range indecies {
+			indecies[i] = []int{i}
+		}
+		for _, top := range config.Args[1] {
+			for _, tree := range config.Args[2] {
+				for _, searchK := range config.Args[3] {
+					searchers := make([]sanny.Searcher, splitNum)
+					for i, _ := range searchers {
+						searchers[i] = sanny.NewAnnoy(tree, searchK)
+					}
+					runner := Runner{
+						Name:        "Sanny",
+						Description: fmt.Sprintf("split: %d, top: %d, tree: %d, searchK: %d", splitNum, top, tree, searchK),
+						Algo:        sanny.NewSanny(splitNum, top, true, searchers, indecies),
+					}
+					recall, qps := runner.Run(truth, queries, data)
+					writeTo(runner.Name, recall, qps)
+				}
 			}
-			runner := Runner{
-				Name:        "Sanny",
-				Description: fmt.Sprintf("split: %d, top: %d, tree: %d, searchK: %d", splitNum, top, tree, searchK),
-				Algo:        sanny.NewSanny(splitNum, top, true, searchers, indecies),
-			}
-			recall, qps := runner.Run(truth, queries, data)
-			writeTo(runner.Name, recall, qps)
 		}
 	}
 }
@@ -148,7 +150,7 @@ func computeTruth(queries, data [][]float32) [][]int {
 		if i%50 == 0 {
 			fmt.Printf("%d\n", i)
 		}
-		truth[i] = bf.Search(q, count)
+		truth[i] = bf.SearchConcurrent(q, count)
 	}
 	return truth
 }
