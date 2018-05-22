@@ -8,7 +8,7 @@ import (
 type Sanny struct {
 	data      [][]float32
 	splitNum  int
-	top       int
+	Top       int
 	searchers []Searcher
 	sort      bool
 	indecies  [][]int
@@ -17,7 +17,7 @@ type Sanny struct {
 func NewSanny(splitNum, top int, sort bool, searchers []Searcher, indecies [][]int) Searcher {
 	return &Sanny{
 		splitNum:  splitNum,
-		top:       top,
+		Top:       top,
 		searchers: searchers,
 		sort:      sort,
 		indecies:  indecies,
@@ -53,7 +53,7 @@ func (s Sanny) Search(q []float32, n int) []int {
 	results := map[int]int{}
 
 	var wg sync.WaitGroup
-	ch := make(chan int, s.top)
+	ch := make(chan int, s.Top)
 	done := make(chan struct{}, 1)
 	go func() {
 		for id := range ch {
@@ -86,7 +86,7 @@ func (s Sanny) Search(q []float32, n int) []int {
 					qq = append(qq, q[from:to]...)
 				}
 			}
-			r := s.searchers[i].Search(qq, s.top)
+			r := s.searchers[i].Search(qq, s.Top)
 			for _, id := range r {
 				ch <- id
 			}

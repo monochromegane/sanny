@@ -3,6 +3,7 @@
 package sanny
 
 type Annoy struct {
+	SearchK int
 }
 
 func NewAnnoy(tree, searchK int) *Annoy {

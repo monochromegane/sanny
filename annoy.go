@@ -6,14 +6,14 @@ import "annoyindex"
 
 type Annoy struct {
 	tree    int
-	searchK int
+	SearchK int
 	idx     annoyindex.AnnoyIndexEuclidean
 }
 
 func NewAnnoy(tree, searchK int) *Annoy {
 	return &Annoy{
 		tree:    tree,
-		searchK: searchK,
+		SearchK: searchK,
 	}
 }
 
@@ -28,6 +28,6 @@ func (a *Annoy) Build(data [][]float32) {
 
 func (a Annoy) Search(q []float32, n int) []int {
 	var result []int
-	a.idx.GetNnsByVector(q, n, a.searchK, &result)
+	a.idx.GetNnsByVector(q, n, a.SearchK, &result)
 	return result
 }

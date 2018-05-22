@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 dirname = 'results'
 
-plt.title('Recall-Query per second(1/s) tradeoff')
-plt.xlabel('Recall')
+plt.title('Precision-Query per second(1/s) tradeoff')
+plt.xlabel('Precision')
 plt.ylabel('Query per second (1/s)')
 plt.yscale('log')
 plt.xlim(0.0, 1.03)

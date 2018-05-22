@@ -80,21 +80,27 @@ func main() {
 }
 
 func benchBruteForce(queries, data [][]float32, truth [][]int) {
+	algo := sanny.NewBruteForce()
 	runner := Runner{
-		Name:        "BruteForce",
-		Description: fmt.Sprintf("data: %d", len(data)),
-		Algo:        sanny.NewBruteForce(),
+		Name: "BruteForce",
+		Algo: algo,
 	}
+	fmt.Printf("Building %s\n", runner.Name)
+	algo.Build(data)
+	fmt.Printf("%s\n", fmt.Sprintf("data: %d", len(data)))
 	recall, qps := runner.Run(truth, queries, data)
 	writeTo(runner.Name, recall, qps)
 }
 
 func benchBruteForceBLAS(queries, data [][]float32, truth [][]int) {
+	algo := sanny.NewBruteForceBLAS()
 	runner := Runner{
-		Name:        "BruteForceBLAS",
-		Description: fmt.Sprintf("data: %d", len(data)),
-		Algo:        sanny.NewBruteForceBLAS(),
+		Name: "BruteForceBLAS",
+		Algo: algo,
 	}
+	fmt.Printf("Building %s\n", runner.Name)
+	algo.Build(data)
+	fmt.Printf("%s\n", fmt.Sprintf("data: %d", len(data)))
 	recall, qps := runner.Run(truth, queries, data)
 	writeTo(runner.Name, recall, qps)
 }
@@ -102,12 +108,19 @@ func benchBruteForceBLAS(queries, data [][]float32, truth [][]int) {
 func benchAnnoy(queries, data [][]float32, truth [][]int) {
 	config, _ := loadConfig(configPath)
 	for _, tree := range config.Args[0] {
+		algo := sanny.NewAnnoy(tree, 0)
+
+		runner := Runner{
+			Name: "Annoy",
+			Algo: algo,
+		}
+
+		fmt.Printf("Building %s\n", runner.Name)
+		algo.Build(data)
+
 		for _, searchK := range config.Args[1] {
-			runner := Runner{
-				Name:        "Annoy",
-				Description: fmt.Sprintf("tree: %d, searchK: %d", tree, searchK),
-				Algo:        sanny.NewAnnoy(tree, searchK),
-			}
+			fmt.Printf("%s\n", fmt.Sprintf("tree: %d, searchK: %d", tree, searchK))
+			algo.SearchK = searchK
 			recall, qps := runner.Run(truth, queries, data)
 			writeTo(runner.Name, recall, qps)
 		}
@@ -121,17 +134,24 @@ func benchSanny(queries, data [][]float32, truth [][]int) {
 		for i, _ := range indecies {
 			indecies[i] = []int{i}
 		}
-		for _, top := range config.Args[1] {
-			for _, tree := range config.Args[2] {
+		for _, tree := range config.Args[2] {
+			searchers := make([]sanny.Searcher, splitNum)
+			for i, _ := range searchers {
+				searchers[i] = sanny.NewAnnoy(tree, 0)
+			}
+			algo := sanny.NewSanny(splitNum, 0, true, searchers, indecies)
+			runner := Runner{
+				Name: "Sanny",
+				Algo: algo,
+			}
+			fmt.Printf("Building %s\n", runner.Name)
+			algo.Build(data)
+			for _, top := range config.Args[1] {
 				for _, searchK := range config.Args[3] {
-					searchers := make([]sanny.Searcher, splitNum)
+					fmt.Printf("%s\n", fmt.Sprintf("split: %d, top: %d, tree: %d, searchK: %d", splitNum, top, tree, searchK))
+					algo.(*sanny.Sanny).Top = top
 					for i, _ := range searchers {
-						searchers[i] = sanny.NewAnnoy(tree, searchK)
-					}
-					runner := Runner{
-						Name:        "Sanny",
-						Description: fmt.Sprintf("split: %d, top: %d, tree: %d, searchK: %d", splitNum, top, tree, searchK),
-						Algo:        sanny.NewSanny(splitNum, top, true, searchers, indecies),
+						searchers[i].(*sanny.Annoy).SearchK = searchK
 					}
 					recall, qps := runner.Run(truth, queries, data)
 					writeTo(runner.Name, recall, qps)
@@ -204,10 +224,6 @@ type Runner struct {
 }
 
 func (r *Runner) Run(truth [][]int, queries, data [][]float32) (float64, time.Duration) {
-	fmt.Printf("Building %s\n", r.Name)
-	r.Algo.Build(data)
-	fmt.Printf("%s\n", r.Description)
-
 	bestSearchTime := time.Duration(math.MaxInt32)
 	match := 0
 	for i := 0; i < runs; i++ {
