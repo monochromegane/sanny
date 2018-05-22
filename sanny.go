@@ -122,7 +122,7 @@ func (s Sanny) bruteForce(q []float32, n int, candidates map[int]int) []int {
 		keys[cnt] = k
 		cnt += 1
 	}
-	bf := BruteForceBLAS{}
+	bf := bruteForceAlgorism()
 	bf.Build(data)
 	indecies := bf.Search(q, n)
 	ids := make([]int, len(indecies))
