@@ -32,7 +32,7 @@ var (
 
 func init() {
 	flag.StringVar(&configPath, "config", "algos.yaml", "Algorithm definitions file path")
-	flag.StringVar(&algo, "algo", "sanny", "brute_force|brute_force_blas|annoy|sanny")
+	flag.StringVar(&algo, "algo", "sanny", "brute_force|brute_force_blas|annoy|ngt|sanny")
 	flag.StringVar(&dataPath, "data", "", "Input data file path")
 	flag.IntVar(&testSize, "test-size", 500, "test size")
 	flag.IntVar(&runs, "runs", 3, "Run each algorithm")
@@ -72,6 +72,8 @@ func main() {
 		benchBruteForceBLAS(queries, data, truth)
 	case "annoy":
 		benchAnnoy(queries, data, truth)
+	case "ngt":
+		benchNGT(queries, data, truth)
 	case "sanny":
 		benchSanny(queries, data, truth)
 	default:
@@ -124,6 +126,25 @@ func benchAnnoy(queries, data [][]float32, truth [][]int) {
 			recall, qps := runner.Run(truth, queries, data)
 			writeTo(runner.Name, recall, qps)
 		}
+	}
+}
+
+func benchNGT(queries, data [][]float32, truth [][]int) {
+	config, _ := loadConfig(configPath)
+	for _, edge := range config.Args[0] {
+		algo := sanny.NewNGT(edge)
+
+		runner := Runner{
+			Name: "NGT",
+			Algo: algo,
+		}
+
+		fmt.Printf("Building %s\n", runner.Name)
+		algo.Build(data)
+
+		fmt.Printf("%s\n", fmt.Sprintf("edge: %d", edge))
+		recall, qps := runner.Run(truth, queries, data)
+		writeTo(runner.Name, recall, qps)
 	}
 }
 

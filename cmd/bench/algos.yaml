@@ -9,5 +9,8 @@ algos:
     name: annoy
     args: [[100, 200, 400], [100, 200, 400, 1000, 2000, 4000, 10000, 20000, 40000]] # tree, searchK
   -
+    name: ngt
+    args: [[0, 40, 80]] # search_edge
+  -
     name: sanny
     args: [[4, 8], [20, 50, 100], [100, 200, 400], [100, 200, 400, 1000, 2000, 4000, 10000, 20000, 40000]] # split, top, tree, searchK
