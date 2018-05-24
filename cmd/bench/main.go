@@ -26,6 +26,7 @@ var (
 	runs       int
 	count      int
 	algo       string
+	innerAlgo  string
 	seed       int64
 	components int
 )
@@ -33,6 +34,7 @@ var (
 func init() {
 	flag.StringVar(&configPath, "config", "algos.yaml", "Algorithm definitions file path")
 	flag.StringVar(&algo, "algo", "sanny", "brute_force|brute_force_blas|annoy|ngt|sanny")
+	flag.StringVar(&innerAlgo, "inner-algo", "annoy", "annoy|ngt")
 	flag.StringVar(&dataPath, "data", "", "Input data file path")
 	flag.IntVar(&testSize, "test-size", 500, "test size")
 	flag.IntVar(&runs, "runs", 3, "Run each algorithm")
@@ -149,6 +151,17 @@ func benchNGT(queries, data [][]float32, truth [][]int) {
 }
 
 func benchSanny(queries, data [][]float32, truth [][]int) {
+	switch innerAlgo {
+	case "annoy":
+		benchSannyAnnoy(queries, data, truth)
+	case "ngt":
+		benchSannyNGT(queries, data, truth)
+	default:
+		benchSannyAnnoy(queries, data, truth)
+	}
+}
+
+func benchSannyAnnoy(queries, data [][]float32, truth [][]int) {
 	config, _ := loadConfig(configPath)
 	for _, splitNum := range config.Args[0] {
 		indecies := make([][]int, splitNum)
@@ -162,7 +175,7 @@ func benchSanny(queries, data [][]float32, truth [][]int) {
 			}
 			algo := sanny.NewSanny(splitNum, 0, true, searchers, indecies)
 			runner := Runner{
-				Name: "Sanny",
+				Name: "Sanny-Annoy",
 				Algo: algo,
 			}
 			fmt.Printf("Building %s\n", runner.Name)
@@ -177,6 +190,35 @@ func benchSanny(queries, data [][]float32, truth [][]int) {
 					recall, qps := runner.Run(truth, queries, data)
 					writeTo(runner.Name, recall, qps)
 				}
+			}
+		}
+	}
+}
+
+func benchSannyNGT(queries, data [][]float32, truth [][]int) {
+	config, _ := loadConfig(configPath)
+	for _, splitNum := range config.Args[0] {
+		indecies := make([][]int, splitNum)
+		for i, _ := range indecies {
+			indecies[i] = []int{i}
+		}
+		for _, edge := range config.Args[1] {
+			searchers := make([]sanny.Searcher, splitNum)
+			for i, _ := range searchers {
+				searchers[i] = sanny.NewNGT(edge)
+			}
+			algo := sanny.NewSanny(splitNum, 0, true, searchers, indecies)
+			runner := Runner{
+				Name: "Sanny-NGT",
+				Algo: algo,
+			}
+			fmt.Printf("Building %s\n", runner.Name)
+			algo.Build(data)
+			for _, top := range config.Args[2] {
+				fmt.Printf("%s\n", fmt.Sprintf("split: %d, top: %d, edge: %d", splitNum, top, edge))
+				algo.(*sanny.Sanny).Top = top
+				recall, qps := runner.Run(truth, queries, data)
+				writeTo(runner.Name, recall, qps)
 			}
 		}
 	}
@@ -305,8 +347,12 @@ func loadConfig(path string) (Algo, error) {
 		return Algo{}, err
 	}
 
+	name := algo
+	if algo == "sanny" {
+		name = fmt.Sprintf("%s_%s", algo, innerAlgo)
+	}
 	for _, c := range config.Algos {
-		if c.Name == algo {
+		if c.Name == name {
 			return c, nil
 		}
 	}

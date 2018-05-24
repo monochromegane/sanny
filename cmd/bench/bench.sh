@@ -8,5 +8,12 @@ go build -tags annoy -o bench cmd/bench/main.go
 
 for algo in brute_force brute_force_blas annoy sanny
 do
-  ./bench -data $data -algo $algo -config $config -test-size $queries
+  if [ $algo = "sanny" ]; then
+    for inner_algo in annoy ngt
+    do
+      ./bench -data $data -algo $algo -inner-algo $inner_algo -config $config -test-size $queries
+    done
+  else
+      ./bench -data $data -algo $algo -config $config -test-size $queries
+  fi
 done
