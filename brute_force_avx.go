@@ -7,18 +7,20 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+
+	"github.com/monochromegane/avx"
 )
 
 func (bf BruteForce) searchWithDistance(q []float32, n int) ([]int, []float64) {
 	distances := make([]float64, len(bf.data))
 
 	dim := len(q)
-	x := mmMalloc(dim)
-	y := mmMalloc(dim)
-	z := mmMalloc(dim)
-	defer mmFree(x)
-	defer mmFree(y)
-	defer mmFree(z)
+	x := avx.MmMalloc(dim)
+	y := avx.MmMalloc(dim)
+	z := avx.MmMalloc(dim)
+	defer avx.MmFree(x)
+	defer avx.MmFree(y)
+	defer avx.MmFree(z)
 	for i, _ := range q {
 		x[i] = q[i]
 	}
@@ -27,8 +29,8 @@ func (bf BruteForce) searchWithDistance(q []float32, n int) ([]int, []float64) {
 		for j, _ := range d {
 			y[j] = d[j]
 		}
-		avxSub(dim, x, y, z)
-		distances[i] = math.Sqrt(float64(avxDot(dim, z, z)))
+		avx.Sub(dim, x, y, z)
+		distances[i] = math.Sqrt(float64(avx.Dot(dim, z, z)))
 	}
 	s := NewFloat64KeyDistance(distances...)
 	sort.Sort(s)
@@ -46,12 +48,12 @@ func (bf BruteForce) SearchConcurrent(q []float32, n int) []int {
 			defer wg.Done()
 
 			dim := len(q)
-			x := mmMalloc(dim)
-			y := mmMalloc(dim)
-			z := mmMalloc(dim)
-			defer mmFree(x)
-			defer mmFree(y)
-			defer mmFree(z)
+			x := avx.MmMalloc(dim)
+			y := avx.MmMalloc(dim)
+			z := avx.MmMalloc(dim)
+			defer avx.MmFree(x)
+			defer avx.MmFree(y)
+			defer avx.MmFree(z)
 			for i, _ := range q {
 				x[i] = q[i]
 			}
@@ -59,8 +61,8 @@ func (bf BruteForce) SearchConcurrent(q []float32, n int) []int {
 				for j, _ := range kv.Values {
 					y[j] = kv.Values[j]
 				}
-				avxSub(dim, x, y, z)
-				distance := math.Sqrt(float64(avxDot(dim, z, z)))
+				avx.Sub(dim, x, y, z)
+				distance := math.Sqrt(float64(avx.Dot(dim, z, z)))
 				kv.Distance = distance
 				out <- kv
 			}
