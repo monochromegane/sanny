@@ -33,8 +33,8 @@ var (
 
 func init() {
 	flag.StringVar(&configPath, "config", "algos.yaml", "Algorithm definitions file path")
-	flag.StringVar(&algo, "algo", "sanny", "brute_force|brute_force_blas|annoy|ngt|sanny")
-	flag.StringVar(&innerAlgo, "inner-algo", "annoy", "annoy|ngt")
+	flag.StringVar(&algo, "algo", "sanny", "brute_force|brute_force_blas|annoy|ngt|lsh|sanny")
+	flag.StringVar(&innerAlgo, "inner-algo", "annoy", "annoy|ngt|lsh")
 	flag.StringVar(&dataPath, "data", "", "Input data file path")
 	flag.IntVar(&testSize, "test-size", 500, "test size")
 	flag.IntVar(&runs, "runs", 3, "Run each algorithm")
@@ -76,6 +76,8 @@ func main() {
 		benchAnnoy(queries, data, truth)
 	case "ngt":
 		benchNGT(queries, data, truth)
+	case "lsh":
+		benchLSH(queries, data, truth)
 	case "sanny":
 		benchSanny(queries, data, truth)
 	default:
@@ -131,6 +133,29 @@ func benchAnnoy(queries, data [][]float32, truth [][]int) {
 	}
 }
 
+func benchLSH(queries, data [][]float32, truth [][]int) {
+	config, _ := loadConfig(configPath)
+	for _, l := range config.Args[0] {
+		for _, m := range config.Args[1] {
+			for _, w := range config.Args[2] {
+				algo := sanny.NewLSH(l, m, float64(w))
+
+				runner := Runner{
+					Name: "LSH",
+					Algo: algo,
+				}
+
+				fmt.Printf("Building %s\n", runner.Name)
+				algo.Build(data)
+
+				fmt.Printf("%s\n", fmt.Sprintf("l: %d, m: %d, w: %d", l, m, w))
+				recall, qps := runner.Run(truth, queries, data)
+				writeTo(runner.Name, recall, qps)
+			}
+		}
+	}
+}
+
 func benchNGT(queries, data [][]float32, truth [][]int) {
 	config, _ := loadConfig(configPath)
 	for _, edge := range config.Args[0] {
@@ -156,6 +181,8 @@ func benchSanny(queries, data [][]float32, truth [][]int) {
 		benchSannyAnnoy(queries, data, truth)
 	case "ngt":
 		benchSannyNGT(queries, data, truth)
+	case "lsh":
+		benchSannyLSH(queries, data, truth)
 	default:
 		benchSannyAnnoy(queries, data, truth)
 	}
@@ -219,6 +246,39 @@ func benchSannyNGT(queries, data [][]float32, truth [][]int) {
 				algo.(*sanny.Sanny).Top = top
 				recall, qps := runner.Run(truth, queries, data)
 				writeTo(runner.Name, recall, qps)
+			}
+		}
+	}
+}
+
+func benchSannyLSH(queries, data [][]float32, truth [][]int) {
+	config, _ := loadConfig(configPath)
+	for _, splitNum := range config.Args[0] {
+		indecies := make([][]int, splitNum)
+		for i, _ := range indecies {
+			indecies[i] = []int{i}
+		}
+		for _, l := range config.Args[2] {
+			for _, m := range config.Args[3] {
+				for _, w := range config.Args[4] {
+					searchers := make([]sanny.Searcher, splitNum)
+					for i, _ := range searchers {
+						searchers[i] = sanny.NewLSH(l, m, float64(w))
+					}
+					algo := sanny.NewSanny(splitNum, 0, true, searchers, indecies)
+					runner := Runner{
+						Name: "Sanny-LSH",
+						Algo: algo,
+					}
+					fmt.Printf("Building %s\n", runner.Name)
+					algo.Build(data)
+					for _, top := range config.Args[1] {
+						fmt.Printf("%s\n", fmt.Sprintf("split: %d, top: %d, l: %d, m: %d, w: %d", splitNum, top, l, m, w))
+						algo.(*sanny.Sanny).Top = top
+						recall, qps := runner.Run(truth, queries, data)
+						writeTo(runner.Name, recall, qps)
+					}
+				}
 			}
 		}
 	}

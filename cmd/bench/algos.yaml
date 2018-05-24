@@ -12,8 +12,14 @@ algos:
     name: ngt
     args: [[0, 40, 80]] # search_edge
   -
+    name: lsh
+    args: [[20], [20], [5]] # l, m, w
+  -
     name: sanny_annoy
     args: [[4, 8], [20, 50, 100], [100, 400], [100, 200, 400, 1000, 2000, 4000, 10000, 20000, 40000, 100000, 200000, 400000]] # split, top, tree, searchK
   -
     name: sanny_ngt
     args: [[4, 8], [0, 40, 80], [100, 400]] # split, edge, top
+  -
+    name: sanny_lsh
+    args: [[4, 8], [100, 400], [20], [20], [5]] # split, top, l, m, w
