@@ -3,7 +3,7 @@
 package sanny
 
 import (
-	"fmt"
+	"io/ioutil"
 	"runtime"
 
 	"github.com/yahoojapan/gongt"
@@ -22,7 +22,8 @@ func NewNGT(edge int) *NGT {
 
 func (ngt *NGT) Build(data [][]float32) {
 	dim := len(data[0])
-	idx := gongt.New(fmt.Sprintf("NGT-%d-%d", dim, ngt.edge)).SetObjectType(gongt.Float).SetDimension(dim).SetSearchEdgeSize(ngt.edge).Open()
+	dir, _ := ioutil.TempDir("", "NGT")
+	idx := gongt.New(dir).SetObjectType(gongt.Float).SetDimension(dim).SetSearchEdgeSize(ngt.edge).Open()
 	for _, d := range data {
 		obj := make([]float64, dim)
 		for j, _ := range d {
